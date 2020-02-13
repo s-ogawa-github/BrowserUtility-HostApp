@@ -1,0 +1,7 @@
+{
+  "name": "browser_utility_host_app",
+  "description": "browser_utility_host_app",
+  "path": "",
+  "type": "stdio",
+  "allowed_extensions": [ "browser_utility@s.ogawa.dev" ]
+}
