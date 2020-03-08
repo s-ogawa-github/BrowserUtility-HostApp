@@ -124,6 +124,10 @@ elif mode == "open_in_ie":
         f.write('set IE = CreateObject ("InternetExplorer.Application")\n')
         f.write('IE.Visible = True\n')
         f.write('IE.Navigate "' + urllib.parse.unquote(path) + '"\n')
+        f.write('Do While IE.Busy\n')
+        f.write('  WScript.Sleep 100\n')
+        f.write('Loop\n')
+        f.write('Set IE = Nothing\n')
 
     logger.info('run cmd:%s' % (cmd))
     res = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
