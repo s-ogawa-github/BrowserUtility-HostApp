@@ -12,6 +12,8 @@ import logging
 import logging.handlers
 import ctypes
 import ctypes.wintypes
+import configparser
+import tkinter
 
 def get_response():
     msg_len = sys.stdin.buffer.read(4)
@@ -45,6 +47,17 @@ def get_foregroundapp_path():
     logger.info("end:%s" % datetime.datetime.now())
     return None
 
+# setting.iniがあればパラメータを読み込む
+ini = {'direct_open_url':None, 'head':None, 'ext':None, 'exclude':'(.exe|.bat)'}
+config_path = 'setting.ini'
+if os.path.exists(config_path):
+    config = configparser.ConfigParser()
+    config.read(config_path)
+    items = dict(config.items('DEFAULT'))
+    for key in ini.keys():
+        if (key in items):
+            ini[key] = items.get(key)
+
 # ログ設定
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -59,6 +72,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 logger.info("start:%s" % datetime.datetime.now())
+logger.debug(ini)
 
 # キーボードからの標準入力の場合は非対応で終了
 if sys.stdin.isatty():
@@ -83,8 +97,7 @@ if not version or not mode:
     send_response("{response:ng}")
     sys.exit()
 
-# コマンド実行
-if mode == "open_in_firefox":
+if mode == "open_in_firefox" or mode == "open_in_ie":
     path = msg.get('path')
     if not path:
         logger.info("mode:%s path is not found: %s", mode, res_msg)
@@ -92,6 +105,19 @@ if mode == "open_in_firefox":
         send_response("{response:ng}")
         sys.exit()
 
+    if ini["direct_open_url"]:
+        temp_path = re.sub(ini["direct_open_url"], "", path, flags=re.I)
+        ini["head"] = re.sub(r"/", r"\\", ini["head"])
+        temp_path = re.sub(r"/", r"\\", temp_path)
+        logger.info("direct_open_url path:%s" % temp_path)
+        if ini["head"] and re.search(ini["head"], temp_path, re.IGNORECASE) and os.path.exists(temp_path):
+            if True == tkinter.messagebox.askokcancel('browser utility host app', 'Open OK?\n' + path):
+                path = temp_path
+                mode = "open_in_explorer"
+                logger.info("open_in_explorer:%s" % path)
+
+# コマンド実行
+if mode == "open_in_firefox":
     match = re.match('.*firefox.exe', get_foregroundapp_path())
     if match:
         browser = '"' + match[0] + '" '
@@ -103,20 +129,13 @@ if mode == "open_in_firefox":
 
     cmd = browser + '"' + urllib.parse.unquote(path) + '"'
     logger.info('run cmd:%s' % (cmd))
-    res = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    res = subprocess.run(cmd, shell=True, timeout=10, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if res and res.stdout:
         logger.info("stdout: %s"%(res.stdout.decode('cp932')))
     if res and res.stderr:
         logger.error("stderr: %s"%(res.stderr.decode('cp932')))
 
 elif mode == "open_in_ie":
-    path = msg.get('path')
-    if not path:
-        logger.info("mode:%s path is not found: %s", mode, res_msg)
-        logger.info("end:%s" % datetime.datetime.now())
-        send_response("{response:ng}")
-        sys.exit()
-
     cmd = os.getcwd() + "\\ieopen_browser_utility.vbs"
     with open(cmd, 'w') as f:
         f.write('Option Explicit\n')
@@ -130,7 +149,16 @@ elif mode == "open_in_ie":
         f.write('Set IE = Nothing\n')
 
     logger.info('run cmd:%s' % (cmd))
-    res = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    res = subprocess.run(cmd, shell=True, timeout=10, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if res and res.stdout:
+        logger.info("stdout: %s"%(res.stdout.decode('cp932')))
+    if res and res.stderr:
+        logger.error("stderr: %s"%(res.stderr.decode('cp932')))
+
+elif mode == "open_in_explorer":
+    cmd = r'explorer "' + path + r'"'
+    logger.info(cmd)
+    res = subprocess.run(cmd, shell=True, timeout=10, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if res and res.stdout:
         logger.info("stdout: %s"%(res.stdout.decode('cp932')))
     if res and res.stderr:
