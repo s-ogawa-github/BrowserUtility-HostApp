@@ -98,12 +98,6 @@ if not version or not mode:
     send_response("{response:ng}")
     sys.exit()
 
-if mode == "open_in_explorer":
-    logger.info("open_in_explorer can't be used directly")
-    logger.info("end:%s" % datetime.datetime.now())
-    send_response("{response:ng}")
-    sys.exit()
-
 if mode == "open_in_firefox" or mode == "open_in_ie":
     path = msg.get('path')
     if not path:
@@ -112,6 +106,27 @@ if mode == "open_in_firefox" or mode == "open_in_ie":
         send_response("{response:ng}")
         sys.exit()
 
+# コマンド実行
+if mode == "open_in_firefox":
+    match = re.match('.*firefox.exe', get_foregroundapp_path())
+    if match:
+        browser = '"' + match[0] + '" '
+    else:
+        logger.info("firefox not found")
+        logger.info("end:%s" % datetime.datetime.now())
+        send_response("{response:ng}")
+        sys.exit()
+
+    cmd = browser + '"' + urllib.parse.unquote(path) + '"'
+    logger.info('run cmd:%s' % (cmd))
+    res = subprocess.run(cmd, shell=True, timeout=10, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if res and res.stdout:
+        logger.info("stdout: %s"%(res.stdout.decode('cp932')))
+    if res and res.stderr:
+        logger.error("stderr: %s"%(res.stderr.decode('cp932')))
+
+elif mode == "open_in_ie":
+    cmd = None
     if ini["head"] and ini["ext"] and ini["direct_open_url"] and re.search('^' + ini["direct_open_url"], path, re.IGNORECASE):
         temp_path = re.sub(ini["direct_open_url"], "", path, flags=re.I)
         temp_path = urllib.parse.unquote(temp_path)
@@ -134,60 +149,29 @@ if mode == "open_in_firefox" or mode == "open_in_ie":
         else:
             result = messagebox.askokcancel('browser utility host app', 'Open OK?\n\npath:\n' + temp_path)
             if result == True:
-                path = temp_path
-                mode = "open_in_explorer"
+                cmd = r'explorer "' + temp_path + r'"'
                 logger.info("open_in_explorer:%s" % path)
             else:
                 logger.info("open_in_explorer canceled")
-
-        if not mode == "open_in_explorer":
+        if not cmd:
             logger.info("end:%s" % datetime.datetime.now())
             send_response("{response:ng}")
             sys.exit()
-
-# コマンド実行
-if mode == "open_in_firefox":
-    match = re.match('.*firefox.exe', get_foregroundapp_path())
-    if match:
-        browser = '"' + match[0] + '" '
     else:
-        logger.info("firefox not found")
-        logger.info("end:%s" % datetime.datetime.now())
-        send_response("{response:ng}")
-        sys.exit()
-
-    cmd = browser + '"' + urllib.parse.unquote(path) + '"'
-    logger.info('run cmd:%s' % (cmd))
-    res = subprocess.run(cmd, shell=True, timeout=10, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if res and res.stdout:
-        logger.info("stdout: %s"%(res.stdout.decode('cp932')))
-    if res and res.stderr:
-        logger.error("stderr: %s"%(res.stderr.decode('cp932')))
-
-elif mode == "open_in_ie":
-    cmd = os.getcwd() + "\\ieopen_browser_utility.vbs"
-    with open(cmd, 'w') as f:
-        f.write('Option Explicit\n')
-        f.write('Dim IE\n')
-        f.write('set IE = CreateObject ("InternetExplorer.Application")\n')
-        f.write('IE.Visible = True\n')
-        f.write('IE.Navigate "' + urllib.parse.unquote(path) + '"\n')
-        f.write('Do While IE.Busy\n')
-        f.write('  WScript.Sleep 100\n')
-        f.write('Loop\n')
-        f.write('Set IE = Nothing\n')
+        cmd = os.getcwd() + "\\ieopen_browser_utility.vbs"
+        with open(cmd, 'w') as f:
+            f.write('Option Explicit\n')
+            f.write('Dim IE\n')
+            f.write('set IE = CreateObject ("InternetExplorer.Application")\n')
+            f.write('IE.Visible = True\n')
+            f.write('IE.Navigate "' + urllib.parse.unquote(path) + '"\n')
+            f.write('Do While IE.Busy\n')
+            f.write('  WScript.Sleep 100\n')
+            f.write('Loop\n')
+            f.write('Set IE = Nothing\n')
 
     logger.info('run cmd:%s' % (cmd))
     res = subprocess.run(cmd, shell=True, timeout=10, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if res and res.stdout:
-        logger.info("stdout: %s"%(res.stdout.decode('cp932')))
-    if res and res.stderr:
-        logger.error("stderr: %s"%(res.stderr.decode('cp932')))
-
-elif mode == "open_in_explorer":
-    cmd = r'explorer "' + path + r'"'
-    logger.info(cmd)
-    res = subprocess.run(cmd, shell=True, timeout=10, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if res and res.stdout:
         logger.info("stdout: %s"%(res.stdout.decode('cp932')))
     if res and res.stderr:
