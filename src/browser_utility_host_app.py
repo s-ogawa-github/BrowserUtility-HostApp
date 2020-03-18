@@ -129,6 +129,7 @@ elif mode == "open_in_ie":
     cmd = None
     if ini["head"] and ini["ext"] and ini["direct_open_url"] and re.search('^' + ini["direct_open_url"], path, re.IGNORECASE):
         temp_path = re.sub(ini["direct_open_url"], "", path, flags=re.I)
+        temp_path = re.sub(r"\+", " ", temp_path)
         temp_path = urllib.parse.unquote(temp_path)
         temp_path = urllib.parse.unquote(temp_path)
         temp_path = re.sub(r"\&code=.*", "", temp_path)
