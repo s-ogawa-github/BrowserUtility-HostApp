@@ -162,14 +162,23 @@ elif mode == "open_in_ie":
         cmd = os.getcwd() + "\\ieopen_browser_utility.vbs"
         with open(cmd, 'w') as f:
             f.write('Option Explicit\n')
-            f.write('Dim IE\n')
+            f.write('Dim IE, SHELL, WIN\n')
             f.write('set IE = CreateObject ("InternetExplorer.Application")\n')
             f.write('IE.Visible = True\n')
             f.write('IE.Navigate "' + urllib.parse.unquote(path) + '"\n')
             f.write('Do While IE.Busy\n')
             f.write('  WScript.Sleep 100\n')
             f.write('Loop\n')
+            if re.search('^file:', path, re.IGNORECASE):
+                f.write('Set SHELL = CreateObject("Shell.Application")\n')
+                f.write('For Each WIN In SHELL.Windows\n')
+                f.write('  If WIN.name = "Internet Explorer" and WIN.LocationURL = "about:blank" Then\n')
+                f.write('    WIN.Quit\n')
+                f.write('  End If\n')
+                f.write('Next\n')
             f.write('Set IE = Nothing\n')
+            f.write('Set SHELL = Nothing\n')
+            f.write('Set WIN = Nothing\n')
 
     logger.info('run cmd:%s' % (cmd))
     res = subprocess.run(cmd, shell=True, timeout=10, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
